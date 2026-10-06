@@ -205,6 +205,65 @@ npm run test:integration
 npm run demo:trigger -- --phone +1XXXXXXXXXX --scenario renewal
 ```
 
+## Live Deployment Evidence
+
+The system has been **deployed and run against live AWS** — these are real AWS CDS service calls, not mocks. All Bedrock calls use **Amazon Nova 2 Lite** (`us.amazon.nova-2-lite-v1:0`).
+
+### End-to-end chain — ✅ proven in one transaction
+A single inbound email flows through **three deployed Lambdas** in one unbroken run:
+
+```
+inbound email
+  → bc-email-categorization   (Nova classifies intent + urgency)   [deployed]
+  → bc-agent-orchestrator     (Nova Converse loop + tool use)      [deployed]
+  → bc-channel-sender         (live SES reply)                     [deployed]
+```
+
+CloudWatch confirms the cascade end-to-end:
+- `[orchestrator] Inbound from email: ... → "Hi, this is Maria..."`
+- `[orchestrator] Tool call: check_case_status`
+- `[sender] Email → ...` (live SES reply delivered)
+
+### Inbound email categorization (AI intent classification) — ✅ live
+- Deployed `bc-email-categorization` Lambda classifies inbound email with Nova 2 Lite.
+- Verified live: a critical SNAP-cutoff complaint returned
+  `complaint_escalation / urgency=critical / needsHuman=true / route-to-caseworker`;
+  a Spanish status question returned `renewal_question / low / es-US / auto-answer`.
+- Mirrors AWS's **"Email Categorization"** reference sample for an Agentic AI Communications Hub.
+
+### Amazon SES (email) — ✅ live, delivered
+- Sent through the **deployed `bc-channel-sender` Lambda** (stack `BenefitsConcierge-Agent`) calling `@aws-sdk/client-sesv2` `SendEmailCommand`.
+- Lambda invoke returned `{"success":true,"channel":"email"}`; CloudWatch shows `[sender] Email → ...`, clean `REPORT`.
+- Also runnable standalone via `demo/live/send-ses.ts` (real `MessageId`).
+
+### AWS End User Messaging (SMS) — ✅ live, accepted
+- Real `SendTextMessage` through `@aws-sdk/client-pinpoint-sms-voice-v2` (`demo/live/send-sms.ts`), accepted with a `MessageId`.
+- Account is in the EUM **sandbox**, so the send targets the AWS **SMS simulator** (identical SDK path and metrics; no carrier delivery until sandbox exit + verified destination).
+
+### AWS End User Messaging Social (WhatsApp) — code complete, not yet fired live
+- `@aws-sdk/client-socialmessaging` `SendWhatsAppMessage` is wired in `lib/lambda/channel-sender/index.ts` and the inbound webhook (`lib/lambda/webhooks/whatsapp-inbound/index.ts`) is deployed.
+- **Setup limitation (why it hasn't fired live):** WhatsApp on AWS requires a **WhatsApp Business Account (WABA)** linked to a Meta Business account and a registered WhatsApp Business phone number connected through the AWS End User Messaging Social console. Unlike SMS/RCS test agents (provisioned in minutes) and SES (verify an identity), WhatsApp onboarding is a **Meta-side business-verification process** that cannot be completed via the AWS CLI/SDK alone. The integration code is complete and will fire as soon as a WABA number is registered; no code change is required.
+
+> **Note on model access:** the demo AWS account is an AWS channel-program account, which does not have Bedrock access to Anthropic Claude. The system therefore uses **Amazon Nova 2 Lite** for all agent reasoning and classification — a fully-supported first-party model that works in this account and keeps the solution portable.
+
+### Reproduce the live sends
+
+```bash
+# SES (requires a verified SES identity + verified sandbox recipient)
+AWS_PROFILE=<profile> AWS_REGION=us-east-1 \
+  SES_FROM=<verified-from> SES_TO=<verified-to> \
+  npx ts-node demo/live/send-ses.ts
+
+# EUM SMS (sandbox simulator origination → simulator success destination)
+AWS_PROFILE=<profile> AWS_REGION=us-east-1 \
+  SMS_FROM_POOL=<simulator-number> SMS_TO=+14254147755 \
+  npx ts-node demo/live/send-sms.ts
+
+# Through the DEPLOYED Lambda (after `cdk deploy`)
+aws lambda invoke --function-name bc-channel-sender \
+  --payload fileb://event.json --cli-binary-format raw-in-base64-out out.json
+```
+
 ## Submission Artifacts
 
 | # | Artifact | Location |
@@ -213,7 +272,7 @@ npm run demo:trigger -- --phone +1XXXXXXXXXX --scenario renewal
 | 2 | Architecture Diagram | [docs/architecture.png](docs/architecture.png) |
 | 3 | Text Description | This README |
 | 4 | Demo Video | [YouTube link](https://youtu.be/PLACEHOLDER) |
-| 5 | Deployed Project URL | [Instructions](#getting-started) |
+| 5 | Deployed Project URL | https://d1ggf0xtaatofn.cloudfront.net (demo UI) + deployed Lambdas (see Live Deployment Evidence) |
 | 6 | ACE Opportunity ID | `OPP-XXXXXXXXX` |
 
 ## License

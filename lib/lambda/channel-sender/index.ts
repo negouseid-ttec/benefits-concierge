@@ -38,9 +38,11 @@ export const handler: Handler = async (event) => {
       return sendCarousel(message);
     case 'email':
       return sendEmail(message);
-    default:
-      console.error(`[sender] Unknown message type: ${(message as any).type}`);
+    default: {
+      const unknownMessage: never = message;
+      console.error('[sender] Unknown message type:', JSON.stringify(unknownMessage));
       return { statusCode: 400, body: 'Unknown message type' };
+    }
   }
 };
 

@@ -15,6 +15,7 @@ export interface AgentStackProps extends cdk.StackProps {
 export class AgentStack extends cdk.Stack {
   public readonly orchestratorFunction: lambda.Function;
   public readonly senderFunction: lambda.Function;
+  public readonly categorizationFunction: lambda.Function;
 
   constructor(scope: Construct, id: string, props: AgentStackProps) {
     super(scope, id, props);
@@ -25,7 +26,7 @@ export class AgentStack extends cdk.Stack {
       CONVERSATION_TABLE: props.conversationTable.tableName,
       CASE_TABLE: props.caseTable.tableName,
       APPOINTMENT_TABLE: props.appointmentTable.tableName,
-      BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+      BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID ?? 'us.amazon.nova-2-lite-v1:0',
       NODE_OPTIONS: '--enable-source-maps',
     };
 
@@ -61,6 +62,38 @@ export class AgentStack extends cdk.Stack {
     props.conversationTable.grantReadWriteData(this.orchestratorFunction);
     props.caseTable.grantReadData(this.orchestratorFunction);
     props.appointmentTable.grantReadWriteData(this.orchestratorFunction);
+
+    // ── Email Categorization (inbound intelligence) ────────────────────────
+    // Classifies inbound email intent + urgency with Bedrock BEFORE routing to
+    // the agent. Mirrors AWS's "Email Categorization" reference sample.
+    this.categorizationFunction = new nodejs.NodejsFunction(this, 'EmailCategorization', {
+      functionName: 'bc-email-categorization',
+      entry: path.join(lambdaDir, 'email-categorization', 'index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      architecture: lambda.Architecture.ARM_64,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        BEDROCK_MODEL_ID: sharedEnv.BEDROCK_MODEL_ID,
+        AGENT_FUNCTION_NAME: this.orchestratorFunction.functionName,
+        NODE_OPTIONS: '--enable-source-maps',
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: 'node20',
+        format: nodejs.OutputFormat.CJS,
+      },
+    });
+
+    this.categorizationFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+        resources: ['*'],
+      }),
+    );
+    this.orchestratorFunction.grantInvoke(this.categorizationFunction);
 
     // ── Channel Sender ─────────────────────────────────────────────────────
     // Takes an outbound message and routes it to the best channel:

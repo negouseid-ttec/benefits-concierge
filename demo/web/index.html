@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Benefits Concierge — Omnichannel Demo</title>
+<style>
+  :root {
+    --sms: #f59e0b; --rcs: #2563eb; --wa: #25d366; --email: #db2777;
+    --bg: #0f172a; --panel: #1e293b; --ink: #e2e8f0; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, var(--bg));
+    color: var(--ink); min-height: 100vh; padding: 28px 20px 48px;
+  }
+  header { text-align: center; margin-bottom: 8px; }
+  header h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  header h1 .emoji { margin-right: 8px; }
+  header p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .gradient-text {
+    background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  /* Act banner */
+  .act-banner {
+    text-align: center; margin: 18px auto 10px; max-width: 820px;
+    min-height: 42px; display: flex; align-items: center; justify-content: center;
+  }
+  .act-pill {
+    background: var(--panel); border: 1px solid #334155; border-radius: 999px;
+    padding: 8px 20px; font-size: 14px; font-weight: 600; color: var(--ink);
+    opacity: 0; transform: translateY(-6px); transition: all .4s ease;
+  }
+  .act-pill.show { opacity: 1; transform: translateY(0); }
+  .act-pill .step { color: var(--muted); font-weight: 500; margin-right: 8px; }
+
+  /* Phones row */
+  .phones {
+    display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
+    max-width: 1400px; margin: 0 auto;
+  }
+  .phone {
+    width: 300px; background: #0b1220; border: 10px solid #0b1220;
+    border-radius: 42px; box-shadow: 0 20px 50px rgba(0,0,0,.5), inset 0 0 0 2px #1e293b;
+    overflow: hidden; display: flex; flex-direction: column; height: 600px;
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .phone.active { transform: translateY(-8px) scale(1.02); }
+  .phone.active.sms { box-shadow: 0 24px 60px rgba(245,158,11,.35); }
+  .phone.active.rcs { box-shadow: 0 24px 60px rgba(37,99,235,.4); }
+  .phone.active.whatsapp { box-shadow: 0 24px 60px rgba(37,211,102,.35); }
+  .phone.active.email { box-shadow: 0 24px 60px rgba(219,39,119,.35); }
+
+  .notch { height: 24px; background: #0b1220; display:flex; align-items:center; justify-content:center; }
+  .notch::after { content:''; width: 90px; height: 7px; background:#1e293b; border-radius: 999px; }
+
+  .app-bar {
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 14px; color: #fff;
+  }
+  .sms .app-bar { background: var(--sms); }
+  .rcs .app-bar { background: var(--rcs); }
+  .whatsapp .app-bar { background: #075e54; }
+  .email .app-bar { background: var(--email); }
+  .app-bar .avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.25);
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .app-bar .sub { font-weight: 400; font-size: 11px; opacity: .85; display:block; }
+
+  .screen {
+    flex: 1; background: #0e1726; padding: 12px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .whatsapp .screen { background: #0b141a; }
+  .email .screen { background: #f8fafc; padding: 0; }
+
+  .bubble {
+    max-width: 80%; padding: 9px 12px; border-radius: 16px; font-size: 13px;
+    line-height: 1.4; word-wrap: break-word; animation: pop .3s ease;
+  }
+  @keyframes pop { from { opacity:0; transform: translateY(8px) scale(.96);} to {opacity:1; transform:none;} }
+  .bubble.in { align-self: flex-start; background: #1e293b; color: var(--ink); border-bottom-left-radius: 4px; }
+  .bubble.out { align-self: flex-end; color: #fff; border-bottom-right-radius: 4px; }
+  .sms .bubble.out { background: var(--sms); }
+  .rcs .bubble.out { background: var(--rcs); }
+  .whatsapp .bubble.out { background: #005c4b; }
+  .whatsapp .bubble.in { background: #1f2c33; }
+  .bubble .who { font-size: 10px; font-weight: 700; opacity: .7; margin-bottom: 2px; display:block; }
+  .tool-chip {
+    align-self: center; font-size: 10px; color: var(--muted); background: rgba(148,163,184,.12);
+    border: 1px solid #334155; border-radius: 999px; padding: 3px 10px; font-family: monospace;
+  }
+
+  /* RCS rich card */
+  .rich-card {
+    align-self: flex-start; max-width: 90%; background:#fff; color:#0f172a; border-radius: 14px;
+    overflow: hidden; animation: pop .3s ease; box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .rich-card .rc-head { background: linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; padding: 12px 14px; }
+  .rich-card .rc-head .t { font-weight: 800; font-size: 14px; }
+  .rich-card .rc-body { padding: 12px 14px; font-size: 12px; line-height: 1.45; }
+  .rich-card .rc-actions { display:flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 14px; }
+  .rich-card .chip {
+    border: 1.5px solid #2563eb; color: #2563eb; border-radius: 999px; padding: 5px 11px;
+    font-size: 11px; font-weight: 600;
+  }
+
+  /* media attachment bubble */
+  .media {
+    align-self: flex-end; width: 150px; background:#005c4b; border-radius: 14px; padding: 6px;
+    animation: pop .3s ease;
+  }
+  .media .thumb {
+    height: 90px; border-radius: 10px; background: repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 8px,#e2e8f0 8px,#e2e8f0 16px);
+    display:flex; align-items:center; justify-content:center; font-size: 28px;
+  }
+  .media .cap { color:#fff; font-size: 11px; padding: 5px 4px 2px; }
+
+  /* Email */
+  .email-msg { background:#fff; animation: pop .3s ease; }
+  .email-head { padding: 14px; border-bottom: 1px solid #e2e8f0; }
+  .email-head .from { display:flex; align-items:center; gap:8px; }
+  .email-head .from .av { width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;}
+  .email-head .name { font-weight:700; color:#0f172a; font-size:13px; }
+  .email-head .addr { color:#64748b; font-size:11px; }
+  .email-subject { padding: 12px 14px 4px; font-weight:800; color:#0f172a; font-size:14px; }
+  .email-body { padding: 4px 14px 16px; color:#334155; font-size:12px; line-height:1.5; }
+  .email-body .badge { display:inline-block; background:#fef3c7; color:#92400e; border-left:3px solid #f59e0b; padding:8px 10px; border-radius:4px; margin:8px 0; font-size:11px; }
+  .email-empty { padding: 40px 20px; text-align:center; color:#94a3b8; font-size:12px; }
+
+  .typing { align-self:flex-start; display:flex; gap:4px; padding:10px 14px; background:#1e293b; border-radius:16px; border-bottom-left-radius:4px; }
+  .typing span { width:7px;height:7px;border-radius:50%;background:#64748b;animation:blink 1.2s infinite; }
+  .typing span:nth-child(2){animation-delay:.2s;} .typing span:nth-child(3){animation-delay:.4s;}
+  @keyframes blink { 0%,60%,100%{opacity:.3;} 30%{opacity:1;} }
+
+  /* Controls */
+  .controls { text-align:center; margin-top: 26px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  button {
+    background: linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; border:none; border-radius:10px;
+    padding: 12px 24px; font-size:14px; font-weight:700; cursor:pointer; transition: transform .15s, opacity .15s;
+  }
+  button:hover { transform: translateY(-2px); }
+  button:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+  button.ghost { background:#1e293b; border:1px solid #334155; }
+  .status-strip {
+    max-width: 820px; margin: 16px auto 0; display:flex; gap:16px; justify-content:center;
+    font-size:12px; color:var(--muted); flex-wrap:wrap;
+  }
+  .status-strip b { color: var(--ink); }
+  .status-strip .chip { background:var(--panel); border:1px solid #334155; border-radius:8px; padding:6px 12px; }
+  .cds-tag { font-size:10px; opacity:.7; }
+</style>
+</head>
+<body>
+  <header>
+    <h1><span class="emoji">🏛️</span><span class="gradient-text">Benefits Concierge</span></h1>
+    <p>One AI agent · one conversation · four AWS CDS channels — <b>SMS · RCS · WhatsApp · Email</b></p>
+  </header>
+
+  <div class="act-banner"><div class="act-pill" id="actPill"></div></div>
+
+  <div class="phones">
+    <!-- SMS -->
+    <div class="phone sms" id="phone-sms">
+      <div class="notch"></div>
+      <div class="app-bar"><div class="avatar">💬</div><div>Messages<span class="sub cds-tag">AWS End User Messaging · SMS</span></div></div>
+      <div class="screen" id="screen-sms"></div>
+    </div>
+    <!-- RCS -->
+    <div class="phone rcs" id="phone-rcs">
+      <div class="notch"></div>
+      <div class="app-bar"><div class="avatar">🏛️</div><div>Benefits Concierge<span class="sub cds-tag">AWS EUM · RCS Business Messaging</span></div></div>
+      <div class="screen" id="screen-rcs"></div>
+    </div>
+    <!-- WhatsApp -->
+    <div class="phone whatsapp" id="phone-whatsapp">
+      <div class="notch"></div>
+      <div class="app-bar"><div class="avatar">🏛️</div><div>Benefits Concierge<span class="sub cds-tag">AWS EUM Social · WhatsApp</span></div></div>
+      <div class="screen" id="screen-whatsapp"></div>
+    </div>
+    <!-- Email -->
+    <div class="phone email" id="phone-email">
+      <div class="notch"></div>
+      <div class="app-bar"><div class="avatar">📧</div><div>Inbox<span class="sub cds-tag">Amazon SES</span></div></div>
+      <div class="screen" id="screen-email"><div class="email-empty">No messages yet</div></div>
+    </div>
+  </div>
+
+  <div class="status-strip">
+    <div class="chip">Case <b id="st-case">SNAP-2026-04821</b></div>
+    <div class="chip">Missing docs: <b id="st-docs">2</b></div>
+    <div class="chip">Channels used: <b id="st-channels">0</b></div>
+    <div class="chip">SES emails: <b id="st-emails">0</b></div>
+  </div>
+
+  <div class="controls">
+    <button id="playBtn" onclick="play()">▶ Play the journey</button>
+    <button class="ghost" onclick="location.reload()">↻ Reset</button>
+  </div>
+
+<script>
+// ─── Demo script: mirrors demo/local/run.ts ────────────────────────────────
+const SNAP = { id: 'SNAP-2026-04821', missing: ['Proof of Income', 'Utility Bill'] };
+const state = { channels: new Set(), emails: 0 };
+
+const steps = [
+  { act: ['ACT 1', 'Proactive SMS reminder'], ch: 'sms', dir: 'out',
+    text: 'Maria, your SNAP renewal is due in 14 days (Oct 20). Reply RENEW to start or HELP for questions.' },
+  { ch: 'sms', dir: 'in', text: 'RENEW' },
+  { ch: 'sms', dir: 'out', tool: 'check_case_status',
+    text: 'Hi Maria! Your SNAP renewal is due Oct 20. You still need: Proof of Income and Utility Bill. Want to upload them? I can send you a card to tap.' },
+
+  { act: ['ACT 2', 'Switches to RCS for a rich experience'], ch: 'rcs', dir: 'in', text: 'what do I still need?' },
+  { ch: 'rcs', dir: 'out', tool: 'check_case_status', card: {
+    title: 'SNAP Renewal — Action Needed',
+    body: 'Due Oct 20 (14 days). Documents still needed:<br>• Proof of Income<br>• Utility Bill',
+    actions: ['📎 Upload Documents', '📅 Schedule Appointment', '🙋 Talk to Someone'] } },
+
+  { act: ['ACT 3', 'Switches to WhatsApp — uploads docs (same thread!)'], ch: 'whatsapp', dir: 'in', text: "Here's my pay stub", media: '🧾 pay-stub.jpg' },
+  { ch: 'whatsapp', dir: 'out', tool: 'upload_document', updateMissing: 1,
+    text: "Got it — recorded your Proof of Income. ✅ Still needed: Utility Bill. Send it whenever you're ready." },
+  { ch: 'whatsapp', dir: 'in', text: 'and my utility bill', media: '🧾 utility-bill.jpg' },
+  { ch: 'whatsapp', dir: 'out', tool: 'upload_document', updateMissing: 0,
+    text: 'Perfect — all required documents received! 🎉 Your case will be reviewed. Emailing you a confirmation now.' },
+
+  { act: ['ACT 4', 'Books a verification appointment'], ch: 'whatsapp', dir: 'in', text: 'can I book an appointment to finish up?' },
+  { ch: 'whatsapp', dir: 'out', tool: 'schedule_appointment + send_confirmation', email: {
+      subject: 'Appointment Confirmed — SNAP Renewal',
+      body: 'Your in-person appointment is confirmed.<div class="badge">📅 Oct 8, 10:00 AM<br>📍 Multnomah County Benefits Office</div>Bring a photo ID. Reply to this email or text us anytime.' },
+    text: 'Done! Booked you Oct 8 at 10:00 AM, Multnomah County Benefits Office. Full details are in your email. See you there!' },
+
+  { act: ['ACT 5', 'Days later — a quick SMS status check (any channel, one thread)'], ch: 'sms', dir: 'in', text: "what's my status now?" },
+  { ch: 'sms', dir: 'out', tool: 'check_case_status',
+    text: 'Your SNAP renewal is all set — every document is on file and your Oct 8 appointment is confirmed. 🎉' },
+];
+
+const screens = {
+  sms: document.getElementById('screen-sms'),
+  rcs: document.getElementById('screen-rcs'),
+  whatsapp: document.getElementById('screen-whatsapp'),
+  email: document.getElementById('screen-email'),
+};
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setActive(ch) {
+  document.querySelectorAll('.phone').forEach(p => p.classList.remove('active'));
+  if (ch) document.getElementById('phone-' + ch).classList.add('active');
+}
+
+function scrollDown(ch) { screens[ch].scrollTop = screens[ch].scrollHeight; }
+
+function updateStatus() {
+  document.getElementById('st-docs').textContent = SNAP.missing.length;
+  document.getElementById('st-channels').textContent = state.channels.size;
+  document.getElementById('st-emails').textContent = state.emails;
+}
+
+async function showTyping(ch) {
+  const t = document.createElement('div');
+  t.className = 'typing'; t.innerHTML = '<span></span><span></span><span></span>';
+  screens[ch].appendChild(t); scrollDown(ch);
+  await sleep(900);
+  t.remove();
+}
+
+async function renderStep(s) {
+  if (s.act) {
+    const pill = document.getElementById('actPill');
+    pill.classList.remove('show');
+    await sleep(200);
+    pill.innerHTML = '<span class="step">' + s.act[0] + '</span>' + s.act[1];
+    pill.classList.add('show');
+    await sleep(500);
+  }
+
+  setActive(s.ch);
+  state.channels.add(s.ch);
+
+  // Inbound user message
+  if (s.dir === 'in') {
+    if (s.media) {
+      const m = document.createElement('div');
+      m.className = 'media';
+      m.innerHTML = '<div class="thumb">🧾</div><div class="cap">' + s.media + '</div>';
+      screens[s.ch].appendChild(m);
+    }
+    if (s.text) {
+      const b = document.createElement('div');
+      b.className = 'bubble out';
+      b.textContent = s.text;
+      screens[s.ch].appendChild(b);
+    }
+    scrollDown(s.ch);
+    updateStatus();
+    await sleep(700);
+    return;
+  }
+
+  // Outbound agent — show tool chip + typing first
+  if (s.tool) {
+    const chip = document.createElement('div');
+    chip.className = 'tool-chip';
+    chip.textContent = '⚙ agent → ' + s.tool;
+    screens[s.ch].appendChild(chip);
+    scrollDown(s.ch);
+    await sleep(600);
+  }
+  await showTyping(s.ch);
+
+  if (s.updateMissing !== undefined) SNAP.missing = SNAP.missing.slice(0, s.updateMissing);
+
+  if (s.card) {
+    const c = document.createElement('div');
+    c.className = 'rich-card';
+    c.innerHTML =
+      '<div class="rc-head"><div class="t">' + s.card.title + '</div></div>' +
+      '<div class="rc-body">' + s.card.body + '</div>' +
+      '<div class="rc-actions">' + s.card.actions.map(a => '<span class="chip">' + a + '</span>').join('') + '</div>';
+    screens[s.ch].appendChild(c);
+  } else if (s.text) {
+    const b = document.createElement('div');
+    b.className = 'bubble in';
+    b.innerHTML = '<span class="who">🤖 Concierge</span>' + s.text;
+    screens[s.ch].appendChild(b);
+  }
+  scrollDown(s.ch);
+
+  // Email side-effect
+  if (s.email) {
+    state.emails++;
+    const empty = screens.email.querySelector('.email-empty');
+    if (empty) empty.remove();
+    const e = document.createElement('div');
+    e.className = 'email-msg';
+    e.innerHTML =
+      '<div class="email-head"><div class="from"><div class="av">BC</div>' +
+      '<div><div class="name">Benefits Concierge</div><div class="addr">benefits@multco.gov</div></div></div></div>' +
+      '<div class="email-subject">' + s.email.subject + '</div>' +
+      '<div class="email-body">' + s.email.body + '</div>';
+    screens.email.appendChild(e);
+    document.getElementById('phone-email').classList.add('active');
+    await sleep(300);
+    document.getElementById('phone-email').classList.remove('active');
+    setActive(s.ch);
+  }
+
+  updateStatus();
+  await sleep(900);
+}
+
+async function play() {
+  const btn = document.getElementById('playBtn');
+  btn.disabled = true; btn.textContent = '▶ Playing…';
+  for (const s of steps) await renderStep(s);
+  setActive(null);
+  const pill = document.getElementById('actPill');
+  pill.innerHTML = '✅ One conversation · four CDS channels · zero handoffs';
+  btn.textContent = '✓ Done — press Reset to replay';
+}
+updateStatus();
+
+// Autoplay for recording / verification: append ?autoplay=1 to the URL
+if (new URLSearchParams(location.search).get('autoplay') === '1') {
+  window.addEventListener('load', () => setTimeout(play, 400));
+}
+</script>
+</body>
+</html>

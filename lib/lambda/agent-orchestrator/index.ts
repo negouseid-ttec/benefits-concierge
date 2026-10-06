@@ -7,7 +7,13 @@
  * outbound messages via the channel sender.
  */
 
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import {
+  BedrockRuntimeClient,
+  ConverseCommand,
+  type Message,
+  type ContentBlock,
+  type ToolUseBlock,
+} from '@aws-sdk/client-bedrock-runtime';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
@@ -23,7 +29,7 @@ const lambdaClient = new LambdaClient({});
 
 const CONVERSATION_TABLE = process.env.CONVERSATION_TABLE!;
 const CASE_TABLE = process.env.CASE_TABLE!;
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0';
+const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.amazon.nova-2-lite-v1:0';
 const SENDER_FUNCTION = process.env.SENDER_FUNCTION_NAME ?? 'bc-channel-sender';
 const MAX_HISTORY_TURNS = 20;
 const MAX_TOOL_ROUNDS = 5;
@@ -35,7 +41,24 @@ export const handler: Handler = async (event) => {
   // 1. Load or create conversation
   const conversation = await loadOrCreateConversation(message);
 
-  // 2. Append user turn
+  // 2. Build transient turn-context (sender's stable ID + AI categorization).
+  //    This is injected into the system prompt for THIS turn only — it is NOT
+  //    persisted into conversation history (which stores the clean message).
+  const senderHint =
+    `The sender's stable recipientId is "${message.from}". ALWAYS pass this exact ` +
+    `value as the recipientId argument to any tool (check_case_status, ` +
+    `send_confirmation, escalate_to_agent). Never use a name from the message ` +
+    `text as the recipientId.`;
+
+  const categoryHint = message.categorization
+    ? ` This inbound email was pre-classified by AI — category: ${message.categorization.category}, ` +
+      `urgency: ${message.categorization.urgency}, needsHuman: ${message.categorization.needsHuman}, ` +
+      `language: ${message.categorization.language}. ${message.categorization.summary} ` +
+      `Respect this intent and urgency; if needsHuman is true, use escalate_to_agent.`
+    : '';
+
+  const turnContext = senderHint + categoryHint;
+
   const userTurn: ConversationTurn = {
     role: 'user',
     channel: message.channel,
@@ -45,7 +68,7 @@ export const handler: Handler = async (event) => {
   conversation.history.push(userTurn);
 
   // 3. Run the agent loop (Bedrock Converse with tool use)
-  const { responseText, toolCalls } = await runAgentLoop(conversation, message);
+  const { responseText, toolCalls } = await runAgentLoop(conversation, turnContext);
 
   // 4. Append assistant turn
   const assistantTurn: ConversationTurn = {
@@ -75,14 +98,17 @@ export const handler: Handler = async (event) => {
 
 async function runAgentLoop(
   conversation: Conversation,
-  inbound: InboundMessage,
+  turnContext: string,
 ): Promise<{ responseText: string; toolCalls: ConversationTurn['toolCalls'] }> {
   const toolConfig = buildToolConfig();
-  const allToolCalls: ConversationTurn['toolCalls'] = [];
+  const allToolCalls: NonNullable<ConversationTurn['toolCalls']> = [];
 
-  // Build message history for Bedrock
-  const messages = conversation.history.map((turn) => ({
-    role: turn.role as 'user' | 'assistant',
+  // System prompt + this turn's transient context (sender id, categorization)
+  const systemText = turnContext ? `${SYSTEM_PROMPT}\n\n## This Turn\n${turnContext}` : SYSTEM_PROMPT;
+
+  // Build message history for Bedrock (typed as Message[])
+  const messages: Message[] = conversation.history.map((turn) => ({
+    role: turn.role,
     content: [{ text: turn.content }],
   }));
 
@@ -93,7 +119,7 @@ async function runAgentLoop(
     const response = await bedrock.send(
       new ConverseCommand({
         modelId: MODEL_ID,
-        system: [{ text: SYSTEM_PROMPT }],
+        system: [{ text: systemText }],
         messages,
         toolConfig,
         inferenceConfig: {
@@ -103,53 +129,60 @@ async function runAgentLoop(
       }),
     );
 
-    const output = response.output!;
-    if ('message' in output) {
-      const assistantMessage = output.message!;
-      messages.push(assistantMessage as any);
-
-      // Check if there are tool use blocks
-      const toolUseBlocks = (assistantMessage.content ?? []).filter(
-        (block: any) => 'toolUse' in block,
-      );
-
-      if (toolUseBlocks.length === 0) {
-        // No tool calls — extract the text response
-        const textBlock = (assistantMessage.content ?? []).find(
-          (block: any) => 'text' in block,
-        );
-        return {
-          responseText: textBlock ? (textBlock as any).text : 'I apologize, I was unable to process your request.',
-          toolCalls: allToolCalls,
-        };
-      }
-
-      // Execute each tool call
-      const toolResults: any[] = [];
-      for (const block of toolUseBlocks) {
-        const toolUse = (block as any).toolUse;
-        console.log(`[orchestrator] Tool call: ${toolUse.name}`, JSON.stringify(toolUse.input));
-
-        const result = await executeToolCall(toolUse.name, toolUse.input, conversation);
-        allToolCalls.push({
-          tool: toolUse.name,
-          input: toolUse.input,
-          output: typeof result === 'string' ? result : JSON.stringify(result),
-        });
-
-        toolResults.push({
-          toolResult: {
-            toolUseId: toolUse.toolUseId,
-            content: [{ text: typeof result === 'string' ? result : JSON.stringify(result) }],
-          },
-        });
-      }
-
-      // Feed tool results back
-      messages.push({ role: 'user', content: toolResults });
-    } else {
+    const output = response.output;
+    if (output?.$unknown || !output || !('message' in output) || !output.message) {
       break;
     }
+
+    const assistantMessage: Message = output.message;
+    messages.push(assistantMessage);
+
+    const content: ContentBlock[] = assistantMessage.content ?? [];
+
+    // Collect tool-use blocks via the SDK's type guard (no casts)
+    const toolUseBlocks: ToolUseBlock[] = content
+      .filter((block): block is ContentBlock.ToolUseMember => block.toolUse !== undefined)
+      .map((block) => block.toolUse);
+
+    if (toolUseBlocks.length === 0) {
+      // No tool calls — extract the text response
+      const textBlock = content.find(
+        (block): block is ContentBlock.TextMember => block.text !== undefined,
+      );
+      return {
+        responseText: textBlock?.text ?? 'I apologize, I was unable to process your request.',
+        toolCalls: allToolCalls,
+      };
+    }
+
+    // Execute each tool call
+    const toolResults: ContentBlock[] = [];
+    for (const toolUse of toolUseBlocks) {
+      console.log(`[orchestrator] Tool call: ${toolUse.name}`, JSON.stringify(toolUse.input));
+
+      const result = await executeToolCall(
+        toolUse.name!,
+        (toolUse.input ?? {}) as Record<string, unknown>,
+        conversation,
+      );
+      const outputStr = typeof result === 'string' ? result : JSON.stringify(result);
+
+      allToolCalls.push({
+        tool: toolUse.name!,
+        input: (toolUse.input ?? {}) as Record<string, unknown>,
+        output: outputStr,
+      });
+
+      toolResults.push({
+        toolResult: {
+          toolUseId: toolUse.toolUseId,
+          content: [{ text: outputStr }],
+        },
+      });
+    }
+
+    // Feed tool results back
+    messages.push({ role: 'user', content: toolResults });
   }
 
   return {

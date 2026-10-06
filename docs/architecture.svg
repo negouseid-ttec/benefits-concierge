@@ -47,7 +47,24 @@
   <!-- Agent Orchestrator -->
   <rect x="192" y="296" width="320" height="150" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="2.5"/>
   <text x="352" y="320" text-anchor="middle" font-size="15" font-weight="bold">🧠 Agent Orchestrator</text>
-  <text x="352" y="338" text-anchor="middle" font-size="11" fill="#4338ca">Amazon Bedrock (Claude) · Converse + Tool Use</text>
+  <text x="352" y="338" text-anchor="middle" font-size="11" fill="#4338ca">Amazon Bedrock (Nova 2 Lite) · Converse + Tool Use</text>
+
+  <!-- Email Categorization (inbound intelligence) -->
+  <rect x="24" y="296" width="150" height="150" rx="10" fill="#fdf4ff" stroke="#c026d3" stroke-width="2.5"/>
+  <text x="99" y="318" text-anchor="middle" font-size="12" font-weight="bold">✉️ Email</text>
+  <text x="99" y="334" text-anchor="middle" font-size="12" font-weight="bold">Categorization</text>
+  <text x="99" y="352" text-anchor="middle" font-size="9.5" fill="#a21caf">Bedrock Nova 2 Lite</text>
+  <line x1="36" y1="362" x2="162" y2="362" stroke="#f0abfc"/>
+  <text x="34" y="380" font-size="9" fill="#1e293b">classifies inbound:</text>
+  <text x="34" y="396" font-size="9" fill="#1e293b">• category</text>
+  <text x="34" y="410" font-size="9" fill="#1e293b">• urgency</text>
+  <text x="34" y="424" font-size="9" fill="#1e293b">• needsHuman</text>
+  <text x="34" y="438" font-size="9" fill="#1e293b">• language</text>
+  <!-- categorization -> orchestrator -->
+  <line x1="174" y1="360" x2="192" y2="360" stroke="#c026d3" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- inbound email also feeds categorization -->
+  <line x1="603" y1="160" x2="99" y2="296" stroke="#c026d3" stroke-width="1.2" stroke-dasharray="4" marker-end="url(#arrow)"/>
+
   <line x1="212" y1="350" x2="492" y2="350" stroke="#c7d2fe"/>
   <text x="212" y="372" font-size="11" fill="#1e293b">• check_case_status</text>
   <text x="212" y="392" font-size="11" fill="#1e293b">• schedule_appointment</text>
