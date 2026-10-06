@@ -17,7 +17,7 @@ import { SYSTEM_PROMPT, buildToolConfig } from '../../lib/lambda/agent-orchestra
 import { executeToolCall } from './tools';
 
 const USE_LIVE = process.env.DEMO_LIVE_BEDROCK === '1';
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0';
+const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.amazon.nova-2-lite-v1:0';
 
 export interface AgentResult {
   responseText: string;

@@ -29,7 +29,7 @@ const lambdaClient = new LambdaClient({});
 
 const CONVERSATION_TABLE = process.env.CONVERSATION_TABLE!;
 const CASE_TABLE = process.env.CASE_TABLE!;
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0';
+const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.amazon.nova-2-lite-v1:0';
 const SENDER_FUNCTION = process.env.SENDER_FUNCTION_NAME ?? 'bc-channel-sender';
 const MAX_HISTORY_TURNS = 20;
 const MAX_TOOL_ROUNDS = 5;

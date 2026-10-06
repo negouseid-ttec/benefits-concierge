@@ -26,7 +26,7 @@ export class AgentStack extends cdk.Stack {
       CONVERSATION_TABLE: props.conversationTable.tableName,
       CASE_TABLE: props.caseTable.tableName,
       APPOINTMENT_TABLE: props.appointmentTable.tableName,
-      BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+      BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID ?? 'us.amazon.nova-2-lite-v1:0',
       NODE_OPTIONS: '--enable-source-maps',
     };
 

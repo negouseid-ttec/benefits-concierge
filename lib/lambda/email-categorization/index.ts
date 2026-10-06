@@ -27,7 +27,7 @@ import type { InboundMessage, EmailCategorization } from '../../shared/types';
 const bedrock = new BedrockRuntimeClient({});
 const lambdaClient = new LambdaClient({});
 
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0';
+const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.amazon.nova-2-lite-v1:0';
 const AGENT_FUNCTION = process.env.AGENT_FUNCTION_NAME ?? 'bc-agent-orchestrator';
 
 type EmailCategory = EmailCategorization['category'];
