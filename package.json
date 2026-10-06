@@ -13,7 +13,8 @@
     "deploy": "cdk deploy --all",
     "setup:rcs": "ts-node scripts/setup-rcs.ts",
     "setup:test-device": "ts-node scripts/setup-test-device.ts",
-    "demo:trigger": "ts-node scripts/demo-trigger.ts"
+    "demo:trigger": "ts-node scripts/demo-trigger.ts",
+    "demo:local": "ts-node demo/local/run.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "3.682.0",
