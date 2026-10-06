@@ -205,6 +205,40 @@ npm run test:integration
 npm run demo:trigger -- --phone +1XXXXXXXXXX --scenario renewal
 ```
 
+## Live Deployment Evidence
+
+The system has been **deployed and run against live AWS** — these are real AWS CDS service calls, not mocks:
+
+### Amazon SES (email) — ✅ live, delivered
+- Sent through the **deployed `bc-channel-sender` Lambda** (CloudFormation stack `BenefitsConcierge-Agent`, `CREATE_COMPLETE`) calling `@aws-sdk/client-sesv2` `SendEmailCommand`.
+- Lambda invoke returned `{"success":true,"channel":"email"}`; CloudWatch logs show `[sender] Email → ...` with a clean `REPORT` (no error).
+- Also runnable standalone via `demo/live/send-ses.ts` (real `MessageId` returned).
+
+### AWS End User Messaging (SMS) — ✅ live, accepted
+- Real `SendTextMessage` through `@aws-sdk/client-pinpoint-sms-voice-v2` (`demo/live/send-sms.ts`), accepted with a `MessageId`.
+- Account is in the EUM **sandbox**, so the send targets the AWS **SMS simulator** (identical SDK path and metrics; no carrier delivery until sandbox exit + verified destination).
+
+### AWS End User Messaging Social (WhatsApp) — code complete
+- `@aws-sdk/client-socialmessaging` `SendWhatsAppMessage` wired in `lib/lambda/channel-sender/index.ts`; requires a registered WhatsApp Business number to fire.
+
+### Reproduce the live sends
+
+```bash
+# SES (requires a verified SES identity + verified sandbox recipient)
+AWS_PROFILE=<profile> AWS_REGION=us-east-1 \
+  SES_FROM=<verified-from> SES_TO=<verified-to> \
+  npx ts-node demo/live/send-ses.ts
+
+# EUM SMS (sandbox simulator origination → simulator success destination)
+AWS_PROFILE=<profile> AWS_REGION=us-east-1 \
+  SMS_FROM_POOL=<simulator-number> SMS_TO=+14254147755 \
+  npx ts-node demo/live/send-sms.ts
+
+# Through the DEPLOYED Lambda (after `cdk deploy`)
+aws lambda invoke --function-name bc-channel-sender \
+  --payload fileb://event.json --cli-binary-format raw-in-base64-out out.json
+```
+
 ## Submission Artifacts
 
 | # | Artifact | Location |
@@ -213,7 +247,7 @@ npm run demo:trigger -- --phone +1XXXXXXXXXX --scenario renewal
 | 2 | Architecture Diagram | [docs/architecture.png](docs/architecture.png) |
 | 3 | Text Description | This README |
 | 4 | Demo Video | [YouTube link](https://youtu.be/PLACEHOLDER) |
-| 5 | Deployed Project URL | [Instructions](#getting-started) |
+| 5 | Deployed Project URL | https://d1ggf0xtaatofn.cloudfront.net (demo UI) + deployed Lambdas (see Live Deployment Evidence) |
 | 6 | ACE Opportunity ID | `OPP-XXXXXXXXX` |
 
 ## License
