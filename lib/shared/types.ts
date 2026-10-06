@@ -29,8 +29,27 @@ export interface InboundMessage {
   text: string;
   /** Media attachments (documents, images) */
   media?: MediaAttachment[];
+  /** AI categorization (set by the email-categorization Lambda for inbound email) */
+  categorization?: EmailCategorization;
   /** Raw channel-specific payload for debugging */
   rawPayload?: unknown;
+}
+
+/** AI classification of an inbound email, produced by the email-categorization Lambda. */
+export interface EmailCategorization {
+  category:
+    | 'renewal_question'
+    | 'document_submission'
+    | 'status_inquiry'
+    | 'appointment_request'
+    | 'complaint_escalation'
+    | 'benefit_change'
+    | 'other';
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  needsHuman: boolean;
+  language: string;
+  summary: string;
+  suggestedAction: string;
 }
 
 export interface MediaAttachment {

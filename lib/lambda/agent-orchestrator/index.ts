@@ -41,11 +41,19 @@ export const handler: Handler = async (event) => {
   // 1. Load or create conversation
   const conversation = await loadOrCreateConversation(message);
 
-  // 2. Append user turn
+  // 2. Append user turn — prepend the AI categorization (if this inbound email
+  //    was pre-classified by the email-categorization Lambda) so the agent
+  //    respects intent, urgency, and escalation signals.
+  const categoryHint = message.categorization
+    ? `[Inbound email classified by AI — category: ${message.categorization.category}, ` +
+      `urgency: ${message.categorization.urgency}, needsHuman: ${message.categorization.needsHuman}, ` +
+      `language: ${message.categorization.language}. ${message.categorization.summary}]\n\n`
+    : '';
+
   const userTurn: ConversationTurn = {
     role: 'user',
     channel: message.channel,
-    content: message.text,
+    content: categoryHint + message.text,
     timestamp: message.timestamp,
   };
   conversation.history.push(userTurn);

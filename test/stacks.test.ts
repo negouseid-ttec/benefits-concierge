@@ -49,9 +49,16 @@ describe('Benefits Concierge Infrastructure', () => {
     });
   });
 
-  test('Agent stack creates orchestrator and sender Lambdas', () => {
+  test('Agent stack creates orchestrator, sender, and categorization Lambdas', () => {
     const template = Template.fromStack(agentStack);
-    template.resourceCountIs('AWS::Lambda::Function', 2);
+    template.resourceCountIs('AWS::Lambda::Function', 3);
+  });
+
+  test('Email categorization Lambda has Bedrock access', () => {
+    const template = Template.fromStack(agentStack);
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'bc-email-categorization',
+    });
   });
 
   test('Orchestrator has Bedrock invoke permissions', () => {
