@@ -7,7 +7,13 @@
  * outbound messages via the channel sender.
  */
 
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import {
+  BedrockRuntimeClient,
+  ConverseCommand,
+  type Message,
+  type ContentBlock,
+  type ToolUseBlock,
+} from '@aws-sdk/client-bedrock-runtime';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
@@ -78,11 +84,11 @@ async function runAgentLoop(
   inbound: InboundMessage,
 ): Promise<{ responseText: string; toolCalls: ConversationTurn['toolCalls'] }> {
   const toolConfig = buildToolConfig();
-  const allToolCalls: ConversationTurn['toolCalls'] = [];
+  const allToolCalls: NonNullable<ConversationTurn['toolCalls']> = [];
 
-  // Build message history for Bedrock
-  const messages = conversation.history.map((turn) => ({
-    role: turn.role as 'user' | 'assistant',
+  // Build message history for Bedrock (typed as Message[])
+  const messages: Message[] = conversation.history.map((turn) => ({
+    role: turn.role,
     content: [{ text: turn.content }],
   }));
 
@@ -103,53 +109,60 @@ async function runAgentLoop(
       }),
     );
 
-    const output = response.output!;
-    if ('message' in output) {
-      const assistantMessage = output.message!;
-      messages.push(assistantMessage as any);
-
-      // Check if there are tool use blocks
-      const toolUseBlocks = (assistantMessage.content ?? []).filter(
-        (block: any) => 'toolUse' in block,
-      );
-
-      if (toolUseBlocks.length === 0) {
-        // No tool calls — extract the text response
-        const textBlock = (assistantMessage.content ?? []).find(
-          (block: any) => 'text' in block,
-        );
-        return {
-          responseText: textBlock ? (textBlock as any).text : 'I apologize, I was unable to process your request.',
-          toolCalls: allToolCalls,
-        };
-      }
-
-      // Execute each tool call
-      const toolResults: any[] = [];
-      for (const block of toolUseBlocks) {
-        const toolUse = (block as any).toolUse;
-        console.log(`[orchestrator] Tool call: ${toolUse.name}`, JSON.stringify(toolUse.input));
-
-        const result = await executeToolCall(toolUse.name, toolUse.input, conversation);
-        allToolCalls.push({
-          tool: toolUse.name,
-          input: toolUse.input,
-          output: typeof result === 'string' ? result : JSON.stringify(result),
-        });
-
-        toolResults.push({
-          toolResult: {
-            toolUseId: toolUse.toolUseId,
-            content: [{ text: typeof result === 'string' ? result : JSON.stringify(result) }],
-          },
-        });
-      }
-
-      // Feed tool results back
-      messages.push({ role: 'user', content: toolResults });
-    } else {
+    const output = response.output;
+    if (output?.$unknown || !output || !('message' in output) || !output.message) {
       break;
     }
+
+    const assistantMessage: Message = output.message;
+    messages.push(assistantMessage);
+
+    const content: ContentBlock[] = assistantMessage.content ?? [];
+
+    // Collect tool-use blocks via the SDK's type guard (no casts)
+    const toolUseBlocks: ToolUseBlock[] = content
+      .filter((block): block is ContentBlock.ToolUseMember => block.toolUse !== undefined)
+      .map((block) => block.toolUse);
+
+    if (toolUseBlocks.length === 0) {
+      // No tool calls — extract the text response
+      const textBlock = content.find(
+        (block): block is ContentBlock.TextMember => block.text !== undefined,
+      );
+      return {
+        responseText: textBlock?.text ?? 'I apologize, I was unable to process your request.',
+        toolCalls: allToolCalls,
+      };
+    }
+
+    // Execute each tool call
+    const toolResults: ContentBlock[] = [];
+    for (const toolUse of toolUseBlocks) {
+      console.log(`[orchestrator] Tool call: ${toolUse.name}`, JSON.stringify(toolUse.input));
+
+      const result = await executeToolCall(
+        toolUse.name!,
+        (toolUse.input ?? {}) as Record<string, unknown>,
+        conversation,
+      );
+      const outputStr = typeof result === 'string' ? result : JSON.stringify(result);
+
+      allToolCalls.push({
+        tool: toolUse.name!,
+        input: (toolUse.input ?? {}) as Record<string, unknown>,
+        output: outputStr,
+      });
+
+      toolResults.push({
+        toolResult: {
+          toolUseId: toolUse.toolUseId,
+          content: [{ text: outputStr }],
+        },
+      });
+    }
+
+    // Feed tool results back
+    messages.push({ role: 'user', content: toolResults });
   }
 
   return {

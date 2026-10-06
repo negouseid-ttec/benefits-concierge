@@ -13,6 +13,32 @@ import type { InboundMessage } from '../../../shared/types';
 
 const lambdaClient = new LambdaClient({});
 const AGENT_FUNCTION = process.env.AGENT_FUNCTION_NAME!;
+
+/** Minimal WhatsApp Cloud API inbound shapes (fields optional — external JSON). */
+interface WhatsAppMedia {
+  id?: string;
+  mime_type?: string;
+  filename?: string;
+  caption?: string;
+}
+interface WhatsAppMessage {
+  id?: string;
+  from: string;
+  timestamp: string;
+  type: 'text' | 'image' | 'document' | 'video' | 'interactive' | string;
+  text?: { body?: string };
+  image?: WhatsAppMedia;
+  document?: WhatsAppMedia;
+  video?: WhatsAppMedia;
+  interactive?: {
+    button_reply?: { id?: string; title?: string };
+    list_reply?: { id?: string; title?: string };
+  };
+}
+interface WhatsAppChangeValue {
+  metadata?: { display_phone_number?: string };
+  messages?: WhatsAppMessage[];
+}
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? 'benefits-concierge-verify';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -31,7 +57,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
   // ── POST: Incoming WhatsApp message ──────────────────────────────────
   try {
-    const body = JSON.parse(event.body ?? '{}');
+    const body = JSON.parse(event.body ?? '{}') as {
+      entry?: { changes?: { field?: string; value?: WhatsAppChangeValue }[] }[];
+    };
 
     // WhatsApp Cloud API webhook payload structure
     const entries = body.entry ?? [];
@@ -42,7 +70,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
         const messages = change.value?.messages ?? [];
         for (const msg of messages) {
-          const inbound = normalizeWhatsAppMessage(msg, change.value);
+          const inbound = normalizeWhatsAppMessage(msg, change.value ?? {});
           if (!inbound) continue;
 
           console.log(`[whatsapp-inbound] From ${inbound.from}: "${inbound.text?.substring(0, 60)}"`);
@@ -65,7 +93,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 };
 
-function normalizeWhatsAppMessage(msg: any, value: any): InboundMessage | null {
+function normalizeWhatsAppMessage(msg: WhatsAppMessage, value: WhatsAppChangeValue): InboundMessage | null {
   const from = msg.from; // WhatsApp phone number (no + prefix)
   const recipientPhone = `+${from}`;
 
@@ -83,25 +111,28 @@ function normalizeWhatsAppMessage(msg: any, value: any): InboundMessage | null {
 
     case 'image':
     case 'document':
-    case 'video':
+    case 'video': {
+      const media: WhatsAppMedia | undefined =
+        msg.type === 'image' ? msg.image : msg.type === 'document' ? msg.document : msg.video;
       return {
         messageId: msg.id ?? uuid(),
         channel: 'whatsapp',
         from: recipientPhone,
         to: value.metadata?.display_phone_number ?? '',
         timestamp: new Date(parseInt(msg.timestamp) * 1000).toISOString(),
-        text: msg[msg.type]?.caption ?? `[${msg.type} attachment]`,
+        text: media?.caption ?? `[${msg.type} attachment]`,
         media: [
           {
-            url: msg[msg.type]?.id ?? '', // WhatsApp media ID — needs download via API
-            mimeType: msg[msg.type]?.mime_type ?? 'application/octet-stream',
-            filename: msg[msg.type]?.filename,
+            url: media?.id ?? '', // WhatsApp media ID — needs download via API
+            mimeType: media?.mime_type ?? 'application/octet-stream',
+            filename: media?.filename,
           },
         ],
         rawPayload: msg,
       };
+    }
 
-    case 'interactive':
+    case 'interactive': {
       // Button reply or list selection
       const interactive = msg.interactive;
       const replyText =
@@ -118,6 +149,7 @@ function normalizeWhatsAppMessage(msg: any, value: any): InboundMessage | null {
         text: replyText,
         rawPayload: msg,
       };
+    }
 
     default:
       console.log(`[whatsapp-inbound] Unsupported message type: ${msg.type}`);

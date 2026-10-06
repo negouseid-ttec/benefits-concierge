@@ -13,15 +13,30 @@ import type { InboundMessage } from '../../../shared/types';
 const lambdaClient = new LambdaClient({});
 const AGENT_FUNCTION = process.env.AGENT_FUNCTION_NAME!;
 
+/** Minimal SES inbound mail metadata (fields optional — external JSON). */
+interface SesMail {
+  messageId?: string;
+  source?: string;
+  from?: string[];
+  destination?: string[];
+  timestamp?: string;
+}
+interface SesNotification {
+  mail?: SesMail;
+  content?: string;
+}
+
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('[email-inbound] Received event');
 
   try {
-    const body = JSON.parse(event.body ?? '{}');
+    const body = JSON.parse(event.body ?? '{}') as { Message?: string } & SesNotification;
 
     // SES notification via SNS wrapper
-    const notification = body.Message ? JSON.parse(body.Message) : body;
-    const mail = notification.mail ?? notification;
+    const notification: SesNotification = body.Message
+      ? (JSON.parse(body.Message) as SesNotification)
+      : body;
+    const mail: SesMail = notification.mail ?? {};
     const content = notification.content ?? '';
 
     // Extract the plain text body from the email
@@ -78,7 +93,7 @@ function extractPlainText(content: string): string {
   return content.replace(/<[^>]*>/g, '').trim().substring(0, 2000);
 }
 
-function extractRecipientId(mail: any): string | null {
+function extractRecipientId(mail: SesMail): string | null {
   // Convention: we encode the recipient's phone in the reply-to address
   // e.g., benefits+15551234567@domain.com
   const to = mail.destination?.[0] ?? '';

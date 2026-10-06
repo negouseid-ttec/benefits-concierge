@@ -15,14 +15,35 @@ import type { InboundMessage, Channel } from '../../../shared/types';
 const lambdaClient = new LambdaClient({});
 const AGENT_FUNCTION = process.env.AGENT_FUNCTION_NAME!;
 
+/** Shape of the EUM SMS/RCS inbound payloads we handle (all fields optional — external JSON). */
+interface EumInboundPayload {
+  messageId?: string;
+  messageBody?: string;
+  originationNumber?: string;
+  destinationNumber?: string;
+  mediaUrls?: string[];
+  senderPhoneNumber?: string;
+  agentId?: string;
+  sendTime?: string;
+  rbmEvent?: unknown;
+  text?: string;
+  contentMessage?: {
+    text?: string;
+    contentInfo?: { fileUrl: string; mimeType?: string };
+  };
+  suggestionResponse?: { text?: string; postbackData?: string };
+}
+
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('[sms-rcs-inbound] Received event');
 
   try {
-    const body = JSON.parse(event.body ?? '{}');
+    const body = JSON.parse(event.body ?? '{}') as { Message?: string } & EumInboundPayload;
 
     // Determine if this is an SNS notification wrapper or direct API Gateway
-    const payload = body.Message ? JSON.parse(body.Message) : body;
+    const payload: EumInboundPayload = body.Message
+      ? (JSON.parse(body.Message) as EumInboundPayload)
+      : body;
 
     const inbound = normalizeEumInbound(payload);
     if (!inbound) {
@@ -48,7 +69,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 };
 
-function normalizeEumInbound(payload: any): InboundMessage | null {
+function normalizeEumInbound(payload: EumInboundPayload): InboundMessage | null {
   // EUM two-way SMS notification format
   if (payload.messageBody && payload.originationNumber) {
     return {
@@ -58,7 +79,7 @@ function normalizeEumInbound(payload: any): InboundMessage | null {
       to: payload.destinationNumber ?? '',
       timestamp: new Date().toISOString(),
       text: payload.messageBody,
-      media: payload.mediaUrls?.map((url: string) => ({
+      media: payload.mediaUrls?.map((url) => ({
         url,
         mimeType: 'application/octet-stream',
       })),
@@ -103,7 +124,7 @@ function normalizeEumInbound(payload: any): InboundMessage | null {
   return null;
 }
 
-function detectChannel(payload: any): Channel {
+function detectChannel(payload: EumInboundPayload): Channel {
   // If it came through an RCS agent, it's RCS
   if (payload.agentId || payload.rbmEvent) return 'rcs';
   return 'sms';
