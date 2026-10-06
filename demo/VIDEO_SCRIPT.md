@@ -106,22 +106,49 @@
 
 ---
 
-## CLOSING (2:40 – 3:00)
+## ACT 6 — Inbound Intelligence + Live Proof (2:40 – 3:05)
 
-**[SCREEN: Completion banner "✅ One conversation · four CDS channels · zero handoffs"]**
+**[SCREEN: cut from the web UI to a terminal / inbox showing the real system]**
 
-> Benefits Concierge is built entirely on AWS — Bedrock for the agent brain,
-> Lambda for compute, DynamoDB for cross-channel state, and AWS CDK for
-> fully reproducible infrastructure.
+> Everything you just saw isn't a mockup — it's running on AWS right now.
 >
-> It's not a chatbot following a script. It's an agentic AI that reasons,
-> calls tools, and acts across every channel recipients already use.
+> Here's the inbound side. When a recipient *emails in*, the system doesn't
+> just forward the text — a Bedrock-powered **Email Categorization** Lambda
+> classifies it first.
 >
-> The code is open-source, the infrastructure deploys with one command,
-> and the pattern scales to any government program, any channel mix,
-> any language.
+> **[SHOW: the two live classifications]** A frustrated email about benefits
+> being cut off is tagged *complaint — critical — route to a caseworker*.
+> A calm question in Spanish is tagged *renewal question — low urgency —
+> auto-answer — language es-US*. Same inbox, completely different handling.
 >
-> Thank you.
+> **[SHOW: the delivered email in the inbox]** And this is a real email the
+> **deployed** agent sent through Amazon SES — inbound email, classified by
+> AI, reasoned over by the agent, answered on the right channel, all through
+> live Lambdas in one unbroken chain.
+
+---
+
+## CLOSING (3:05 – 3:15)
+
+**[SCREEN: architecture diagram or completion banner]**
+
+> Benefits Concierge is built entirely on AWS — four Communication Developer
+> Services (SMS, RCS, WhatsApp, email), Amazon Bedrock with Nova 2 Lite for
+> the agent brain and inbound classification, Lambda, DynamoDB, and AWS CDK
+> for fully reproducible, one-command infrastructure.
+>
+> It's not a scripted chatbot — it's an agentic AI that classifies intent,
+> reasons, calls tools, and acts across every channel a recipient already uses,
+> in any language. Thank you.
+
+---
+
+## Alternate: keep it to 3:00
+
+If you need to stay strictly under 3 minutes, trim ACT 5 (the SMS status check)
+to a single sentence and merge ACT 6's live-proof into the closing — the
+inbound-classification + real-SES-email proof is the highest-value 20 seconds
+in the whole video, so keep that over the second continuity demo.
 
 ---
 

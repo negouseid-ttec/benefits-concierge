@@ -41,25 +41,34 @@ export const handler: Handler = async (event) => {
   // 1. Load or create conversation
   const conversation = await loadOrCreateConversation(message);
 
-  // 2. Append user turn — prepend the AI categorization (if this inbound email
-  //    was pre-classified by the email-categorization Lambda) so the agent
-  //    respects intent, urgency, and escalation signals.
+  // 2. Build transient turn-context (sender's stable ID + AI categorization).
+  //    This is injected into the system prompt for THIS turn only — it is NOT
+  //    persisted into conversation history (which stores the clean message).
+  const senderHint =
+    `The sender's stable recipientId is "${message.from}". ALWAYS pass this exact ` +
+    `value as the recipientId argument to any tool (check_case_status, ` +
+    `send_confirmation, escalate_to_agent). Never use a name from the message ` +
+    `text as the recipientId.`;
+
   const categoryHint = message.categorization
-    ? `[Inbound email classified by AI — category: ${message.categorization.category}, ` +
+    ? ` This inbound email was pre-classified by AI — category: ${message.categorization.category}, ` +
       `urgency: ${message.categorization.urgency}, needsHuman: ${message.categorization.needsHuman}, ` +
-      `language: ${message.categorization.language}. ${message.categorization.summary}]\n\n`
+      `language: ${message.categorization.language}. ${message.categorization.summary} ` +
+      `Respect this intent and urgency; if needsHuman is true, use escalate_to_agent.`
     : '';
+
+  const turnContext = senderHint + categoryHint;
 
   const userTurn: ConversationTurn = {
     role: 'user',
     channel: message.channel,
-    content: categoryHint + message.text,
+    content: message.text,
     timestamp: message.timestamp,
   };
   conversation.history.push(userTurn);
 
   // 3. Run the agent loop (Bedrock Converse with tool use)
-  const { responseText, toolCalls } = await runAgentLoop(conversation, message);
+  const { responseText, toolCalls } = await runAgentLoop(conversation, turnContext);
 
   // 4. Append assistant turn
   const assistantTurn: ConversationTurn = {
@@ -89,10 +98,13 @@ export const handler: Handler = async (event) => {
 
 async function runAgentLoop(
   conversation: Conversation,
-  inbound: InboundMessage,
+  turnContext: string,
 ): Promise<{ responseText: string; toolCalls: ConversationTurn['toolCalls'] }> {
   const toolConfig = buildToolConfig();
   const allToolCalls: NonNullable<ConversationTurn['toolCalls']> = [];
+
+  // System prompt + this turn's transient context (sender id, categorization)
+  const systemText = turnContext ? `${SYSTEM_PROMPT}\n\n## This Turn\n${turnContext}` : SYSTEM_PROMPT;
 
   // Build message history for Bedrock (typed as Message[])
   const messages: Message[] = conversation.history.map((turn) => ({
@@ -107,7 +119,7 @@ async function runAgentLoop(
     const response = await bedrock.send(
       new ConverseCommand({
         modelId: MODEL_ID,
-        system: [{ text: SYSTEM_PROMPT }],
+        system: [{ text: systemText }],
         messages,
         toolConfig,
         inferenceConfig: {
