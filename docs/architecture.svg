@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="720" viewBox="0 0 1000 720" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569"/>
+    </marker>
+    <linearGradient id="header" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Title -->
+  <rect x="0" y="0" width="1000" height="56" fill="url(#header)"/>
+  <text x="24" y="36" fill="#fff" font-size="24" font-weight="bold">🏛️ Benefits Concierge — Omnichannel AI Agent Architecture</text>
+
+  <!-- Inbound Channels Row -->
+  <text x="24" y="92" fill="#1e293b" font-size="14" font-weight="bold">INBOUND CHANNELS (AWS CDS)</text>
+  <g>
+    <rect x="24" y="104" width="150" height="56" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+    <text x="99" y="128" text-anchor="middle" font-size="14" font-weight="bold">📱 SMS</text>
+    <text x="99" y="146" text-anchor="middle" font-size="11" fill="#92400e">EUM</text>
+
+    <rect x="192" y="104" width="150" height="56" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <text x="267" y="128" text-anchor="middle" font-size="14" font-weight="bold">💬 RCS</text>
+    <text x="267" y="146" text-anchor="middle" font-size="11" fill="#1e40af">EUM (rich cards)</text>
+
+    <rect x="360" y="104" width="150" height="56" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="435" y="128" text-anchor="middle" font-size="14" font-weight="bold">📲 WhatsApp</text>
+    <text x="435" y="146" text-anchor="middle" font-size="11" fill="#15803d">EUM Social</text>
+
+    <rect x="528" y="104" width="150" height="56" rx="8" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
+    <text x="603" y="128" text-anchor="middle" font-size="14" font-weight="bold">📧 Email</text>
+    <text x="603" y="146" text-anchor="middle" font-size="11" fill="#be185d">Amazon SES</text>
+  </g>
+
+  <!-- Channel Router -->
+  <rect x="192" y="200" width="486" height="52" rx="8" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+  <text x="435" y="224" text-anchor="middle" font-size="14" font-weight="bold">Channel Router — API Gateway + Lambda webhooks</text>
+  <text x="435" y="242" text-anchor="middle" font-size="11" fill="#475569">Normalizes every inbound channel to a unified InboundMessage</text>
+
+  <!-- arrows channels -> router -->
+  <line x1="99" y1="160" x2="300" y2="200" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="267" y1="160" x2="380" y2="200" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="435" y1="160" x2="470" y2="200" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="603" y1="160" x2="560" y2="200" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Agent Orchestrator -->
+  <rect x="192" y="296" width="320" height="150" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="2.5"/>
+  <text x="352" y="320" text-anchor="middle" font-size="15" font-weight="bold">🧠 Agent Orchestrator</text>
+  <text x="352" y="338" text-anchor="middle" font-size="11" fill="#4338ca">Amazon Bedrock (Claude) · Converse + Tool Use</text>
+  <line x1="212" y1="350" x2="492" y2="350" stroke="#c7d2fe"/>
+  <text x="212" y="372" font-size="11" fill="#1e293b">• check_case_status</text>
+  <text x="212" y="392" font-size="11" fill="#1e293b">• schedule_appointment</text>
+  <text x="212" y="412" font-size="11" fill="#1e293b">• upload_document</text>
+  <text x="212" y="432" font-size="11" fill="#1e293b">• send_confirmation · escalate_to_agent</text>
+
+  <!-- DynamoDB -->
+  <rect x="560" y="296" width="200" height="150" rx="10" fill="#ecfeff" stroke="#0891b2" stroke-width="2.5"/>
+  <text x="660" y="320" text-anchor="middle" font-size="14" font-weight="bold">🗄️ DynamoDB</text>
+  <text x="660" y="338" text-anchor="middle" font-size="11" fill="#0e7490">Cross-channel state</text>
+  <line x1="580" y1="350" x2="740" y2="350" stroke="#a5f3fc"/>
+  <text x="580" y="372" font-size="11" fill="#1e293b">• Conversations</text>
+  <text x="580" y="392" font-size="11" fill="#1e293b">• Cases</text>
+  <text x="580" y="412" font-size="11" fill="#1e293b">• Appointments</text>
+  <text x="580" y="432" font-size="11" fill="#0e7490" font-style="italic">one thread, all channels</text>
+
+  <!-- router -> orchestrator -->
+  <line x1="435" y1="252" x2="400" y2="296" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- orchestrator <-> dynamo -->
+  <line x1="512" y1="360" x2="560" y2="360" stroke="#0891b2" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="560" y1="385" x2="512" y2="385" stroke="#0891b2" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Channel Sender -->
+  <rect x="192" y="492" width="486" height="52" rx="8" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+  <text x="435" y="516" text-anchor="middle" font-size="14" font-weight="bold">Channel Sender — picks the optimal channel per message</text>
+  <text x="435" y="534" text-anchor="middle" font-size="11" fill="#475569">Reply on same channel · proactive = SMS + RCS + Email · escalate = Connect voice</text>
+
+  <!-- orchestrator -> sender -->
+  <line x1="352" y1="446" x2="400" y2="492" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Outbound Channels -->
+  <text x="24" y="588" fill="#1e293b" font-size="14" font-weight="bold">OUTBOUND CHANNELS (AWS CDS)</text>
+  <g>
+    <rect x="24" y="600" width="150" height="52" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+    <text x="99" y="631" text-anchor="middle" font-size="13" font-weight="bold">📱 SMS (EUM)</text>
+
+    <rect x="192" y="600" width="150" height="52" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <text x="267" y="631" text-anchor="middle" font-size="13" font-weight="bold">💬 RCS (EUM)</text>
+
+    <rect x="360" y="600" width="150" height="52" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="435" y="631" text-anchor="middle" font-size="12" font-weight="bold">📲 WhatsApp</text>
+
+    <rect x="528" y="600" width="150" height="52" rx="8" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
+    <text x="603" y="631" text-anchor="middle" font-size="13" font-weight="bold">📧 SES</text>
+
+    <rect x="696" y="600" width="150" height="52" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="2" stroke-dasharray="4"/>
+    <text x="771" y="624" text-anchor="middle" font-size="12" font-weight="bold">☎️ Connect</text>
+    <text x="771" y="640" text-anchor="middle" font-size="10" fill="#64748b">(voice escalation)</text>
+  </g>
+
+  <!-- sender -> outbound -->
+  <line x1="300" y1="544" x2="120" y2="600" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="380" y1="544" x2="290" y2="600" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="470" y1="544" x2="450" y2="600" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="560" y1="544" x2="590" y2="600" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="620" y1="544" x2="760" y2="600" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrow)"/>
+
+  <!-- Proactive -->
+  <rect x="760" y="200" width="216" height="76" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="868" y="224" text-anchor="middle" font-size="13" font-weight="bold">⏰ Proactive Outreach</text>
+  <text x="868" y="242" text-anchor="middle" font-size="11" fill="#9a3412">EventBridge schedule</text>
+  <text x="868" y="260" text-anchor="middle" font-size="11" fill="#9a3412">renewal reminders</text>
+  <line x1="760" y1="252" x2="678" y2="510" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrow)"/>
+
+  <text x="500" y="704" text-anchor="middle" font-size="11" fill="#94a3b8">All infrastructure defined in AWS CDK · Lambda (ARM64) · fully reproducible via `cdk deploy --all`</text>
+</svg>
